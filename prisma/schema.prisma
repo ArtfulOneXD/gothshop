@@ -9,8 +9,8 @@ generator client {
 
 // =================== ENUMS ===================
 
-enum UserRole {
-  CUSTOMER
+enum Role {
+  USER
   ADMIN
 }
 
@@ -30,20 +30,33 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum ProductType {
+  BRACELET
+  EARRING
+  NECKLACE
+  SPECIAL
+  OTHER
+}
+
 // =================== USERS & ADDRESSES ===================
 
 model User {
-  id        Int        @id @default(autoincrement())
-  email     String     @unique
-  password  String               // hashed password
-  name      String
-  role      UserRole  @default(CUSTOMER)
-  addresses Address[]
-  orders    Order[]
-  reviews   Review[]
-  carts     Cart[] 
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id             Int        @id @default(autoincrement())
+  email          String     @unique
+  passwordHash   String?              // hashed password for credential logins
+  name           String
+  role           Role      @default(USER)
+  emailVerified  DateTime?
+  image          String?
+  addresses      Address[]
+  orders         Order[]
+  reviews        Review[]
+  carts          Cart[]
+  accounts       Account[]
+  sessions       Session[]
+  passwordResetTokens PasswordResetToken[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }
 
 model Address {
@@ -115,6 +128,7 @@ model Product {
   basePrice   Decimal          @db.Decimal(10, 2)
   currency    String           @default("USD")
   active      Boolean          @default(true)
+  productType ProductType      @default(OTHER)
 
   categoryId  Int?
   category    Category?        @relation(fields: [categoryId], references: [id])
@@ -292,5 +306,52 @@ model Review {
   createdAt DateTime @default(now())
 
   @@index([productId])
+  @@index([userId])
+}
+
+// =================== NEXTAUTH MODELS ===================
+
+model Account {
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  sessionToken String   @unique
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires      DateTime
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires   DateTime
+  usedAt    DateTime?
+
   @@index([userId])
 }
